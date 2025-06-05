@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block title %}Enter Password - Presentation {{ ppt_id.replace('ppt','') }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title text-center">Password Required</h2>
+                <p class="text-center text-body-secondary">For Presentation {{ ppt_id.replace('ppt','') }}</p>
+                <form method="POST" action="{{ url_for('login', ppt_id=ppt_id) }}">
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" id="password" name="password" class="form-control" required>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Unlock</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

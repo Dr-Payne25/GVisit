@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block title %}Presentation 2{% endblock %}
+
+{% block content %}
+<div class="card text-center">
+    <div class="card-header">
+        Access Granted
+    </div>
+    <div class="card-body">
+        <h5 class="card-title">Presentation 2</h5>
+        <p class="card-text">You have successfully accessed the page for __{{ ppt_file_name }}__. Click the button below to download the file.</p>
+        <a href="{{ url_for('download_ppt', ppt_id=ppt_id) }}" class="btn btn-primary">
+            Download {{ ppt_file_name }}
+        </a>
+    </div>
+    <div class="card-footer text-body-secondary">
+        <a href="{{ url_for('home') }}">Back to Home</a>
+    </div>
+</div>
+{% endblock %} 

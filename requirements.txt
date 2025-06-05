@@ -1,0 +1,5 @@
+Flask==2.3.3
+Werkzeug<3.0.0 # Pinning Werkzeug due to recent compatibility issues with Flask
+gunicorn==21.2.0
+boto3==1.28.57
+python-dotenv==1.0.0 

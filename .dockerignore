@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+journal_entries.json
+secure_powerpoints/
+*.pptx
+.env
+terraform/
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Documentation
+README.md
+LICENSE
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.log 

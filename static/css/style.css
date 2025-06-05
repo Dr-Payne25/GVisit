@@ -1,0 +1,119 @@
+/* 
+  Custom styles to supplement Bootstrap.
+  Bootstrap is providing the primary dark theme via the `data-bs-theme="dark"` attribute on the <html> tag.
+  You can add custom styles here to override or extend the default Bootstrap styling.
+*/
+
+/* 
+  Example of a custom style for the journal entries to make them stand out a bit.
+  We'll use Bootstrap 'card' component for journal entries. This adds a custom background.
+*/
+.journal-entry-card {
+    background-color: #2d3238;
+    border: 1px solid #3a3f47;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.journal-entry-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Mood and Energy button styling */
+.btn-group-vertical .btn-check:checked + .btn-outline-secondary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+}
+
+/* Entry form card */
+.card {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.card-header {
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gratitude inputs */
+input[name^="gratitude_"] {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+input[name^="gratitude_"]:focus {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Scrollbar styling for entries container */
+.entries-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.entries-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.entries-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.entries-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Focus prompt styling */
+#focus-prompt {
+    min-height: 1.5em;
+    font-style: italic;
+    opacity: 0.8;
+}
+
+/* Badge styling enhancements */
+.badge {
+    font-weight: 500;
+    padding: 0.5em 0.75em;
+}
+
+/* Action item alert */
+.alert-light {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #f8f9fa;
+}
+
+/* Form control enhancements */
+.form-control, .form-select {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Button enhancements */
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+/* Responsive adjustments */
+@media (max-width: 991px) {
+    .entries-container {
+        max-height: none !important;
+    }
+} 

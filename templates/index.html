@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block title %}Welcome{% endblock %}
+
+{% block content %}
+<div class="p-5 mb-4 bg-body-tertiary rounded-3">
+    <div class="container-fluid py-5">
+        <h1 class="display-5 fw-bold">Welcome to Your New Website!</h1>
+        <p class="col-md-8 fs-4">A clean, modern space for our project. This site hosts our presentations and a shared journal for ideas and notes.</p>
+    </div>
+</div>
+
+<div class="row align-items-md-stretch">
+    <div class="col-md-6 mb-4">
+        <div class="h-100 p-5 text-bg-dark rounded-3">
+            <h2>Presentations</h2>
+            <p>Access our two password-protected presentations. You will need the shared password "GVISIT" to view them.</p>
+            <a href="{{ url_for('login', ppt_id='ppt1') }}" class="btn btn-outline-light me-2">Presentation 1</a>
+            <a href="{{ url_for('login', ppt_id='ppt2') }}" class="btn btn-outline-light">Presentation 2</a>
+        </div>
+    </div>
+    <div class="col-md-6 mb-4">
+        <div class="h-100 p-5 bg-body-tertiary border rounded-3">
+            <h2>Quick Journal</h2>
+            <p>A simple, clean journal to quickly capture thoughts, ideas, and tasks. All entries are shared and visible here.</p>
+            <a href="{{ url_for('journal') }}" class="btn btn-outline-secondary">Go to Journal</a>
+        </div>
+    </div>
+</div>
+{% endblock %} 

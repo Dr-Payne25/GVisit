@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount journal data
+      - ./journal_entries.json:/app/journal_entries.json
+      # Mount PowerPoint files
+      - ./secure_powerpoints:/app/secure_powerpoints
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-supersecretkey}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s 

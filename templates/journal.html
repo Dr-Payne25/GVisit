@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+
+{% block title %}Digital Journal{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4">Digital Journal</h2>
+
+    <div class="row g-5">
+        <!-- New Entry Form - Left Side -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">New Entry</h4>
+                    <small id="current-datetime"></small>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('journal') }}">
+                        <!-- Focus Selection -->
+                        <div class="mb-3">
+                            <label for="focus" class="form-label fw-bold">Today's Focus</label>
+                            <select class="form-select" id="focus" name="focus" required onchange="updatePrompt()">
+                                <option value="">Choose your focus...</option>
+                                {% for focus in focuses %}
+                                <option value="{{ focus }}">{{ focus }}</option>
+                                {% endfor %}
+                            </select>
+                            <div id="focus-prompt" class="form-text mt-2 text-muted fst-italic"></div>
+                        </div>
+
+                        <!-- Main Content -->
+                        <div class="mb-3">
+                            <label for="content" class="form-label fw-bold">Reflection</label>
+                            <textarea id="content" name="content" class="form-control" rows="5" 
+                                      placeholder="Start writing..." required></textarea>
+                        </div>
+
+                        <!-- Mood & Energy Row -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Mood</label>
+                                <div class="btn-group-vertical w-100" role="group">
+                                    {% for mood in mood_options %}
+                                    <input type="radio" class="btn-check" name="mood" 
+                                           id="mood-{{ mood.value }}" value="{{ mood.value }}" required>
+                                    <label class="btn btn-outline-secondary text-start" for="mood-{{ mood.value }}">
+                                        {{ mood.label }}
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Energy Level</label>
+                                <div class="btn-group-vertical w-100" role="group">
+                                    {% for level in energy_levels %}
+                                    <input type="radio" class="btn-check" name="energy" 
+                                           id="energy-{{ level }}" value="{{ level }}" required>
+                                    <label class="btn btn-outline-secondary" for="energy-{{ level }}">
+                                        {{ level }}
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Gratitude Section -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Today I'm grateful for...</label>
+                            <input type="text" class="form-control mb-2" name="gratitude_1" 
+                                   placeholder="1. Something that made me smile">
+                            <input type="text" class="form-control mb-2" name="gratitude_2" 
+                                   placeholder="2. A person who helped me">
+                            <input type="text" class="form-control" name="gratitude_3" 
+                                   placeholder="3. An opportunity I have">
+                        </div>
+
+                        <!-- Action Item -->
+                        <div class="mb-4">
+                            <label for="action_item" class="form-label fw-bold">One thing I'll do differently tomorrow</label>
+                            <input type="text" class="form-control" id="action_item" name="action_item" 
+                                   placeholder="What's your key takeaway or next step?">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100">Save Entry</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Past Entries - Right Side -->
+        <div class="col-lg-7">
+            <h4 class="mb-3">Previous Entries</h4>
+            <div class="entries-container" style="max-height: 80vh; overflow-y: auto;">
+                {% if entries %}
+                    {% for entry in entries|reverse %}
+                    <div class="card mb-3 journal-entry-card shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-0">{{ entry.focus }}</h5>
+                                <small class="text-muted">{{ entry.date }} at {{ entry.time }}</small>
+                            </div>
+                            <div class="d-flex gap-3">
+                                <span class="badge bg-info">
+                                    {% if entry.mood == 'excellent' %}😀{% elif entry.mood == 'good' %}🙂{% elif entry.mood == 'okay' %}😐{% elif entry.mood == 'bad' %}🙁{% else %}😩{% endif %}
+                                    {{ entry.mood|title }}
+                                </span>
+                                <span class="badge bg-warning text-dark">⚡ {{ entry.energy }}</span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <p class="card-text">{{ entry.content.replace('\n', '<br>') | safe }}</p>
+                            </div>
+                            
+                            {% if entry.gratitude %}
+                            <div class="mb-3">
+                                <h6 class="text-muted">Grateful for:</h6>
+                                <ul class="list-unstyled ms-3">
+                                    {% for item in entry.gratitude %}
+                                    <li><small>✨ {{ item }}</small></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                            
+                            {% if entry.action_item %}
+                            <div class="alert alert-light mb-0" role="alert">
+                                <strong>Next Step:</strong> {{ entry.action_item }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="card p-5 text-center">
+                    <p class="mb-0 text-muted">No entries yet. Start your journaling journey today!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Dynamic prompt updating based on focus selection
+function updatePrompt() {
+    const focusSelect = document.getElementById('focus');
+    const promptDiv = document.getElementById('focus-prompt');
+    const focusPrompts = {
+        "Daily Reflection": "What was a win today? What was a challenge? What did you learn?",
+        "Weekly Goals": "What are your top 3 goals for this week? What steps will you take?",
+        "Monthly Review": "What progress did you make this month? What habits served you well?",
+        "Brain Dump": "What's on your mind? Get it all out here...",
+        "Gratitude List": "List everything you're grateful for today, big or small.",
+        "Project Planning": "What project are you working on? Break down the next steps.",
+        "Learning Log": "What did you learn today? How can you apply it?"
+    };
+    
+    if (focusSelect.value && focusPrompts[focusSelect.value]) {
+        promptDiv.textContent = focusPrompts[focusSelect.value];
+    } else {
+        promptDiv.textContent = '';
+    }
+}
+
+// Display current date and time
+function updateDateTime() {
+    const now = new Date();
+    const options = { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric', 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+    };
+    document.getElementById('current-datetime').textContent = now.toLocaleString('en-US', options);
+}
+
+// Update on page load
+updateDateTime();
+// Update every minute
+setInterval(updateDateTime, 60000);
+</script>
+{% endblock %} 
