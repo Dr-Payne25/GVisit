@@ -1,5 +1,9 @@
 # GVisit - Modern Digital Journal & Presentation Platform
 
+[![CI/CD Pipeline](https://github.com/Dr-Payne25/GVisit/actions/workflows/ci.yml/badge.svg)](https://github.com/Dr-Payne25/GVisit/actions/workflows/ci.yml)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 A production-ready Flask application featuring a Baronfig-inspired digital journal, secure presentation hosting, and enterprise-grade infrastructure integration with AWS services.
 
 ## 🌟 Features
