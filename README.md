@@ -2,9 +2,26 @@
 
 [![CI/CD Pipeline](https://github.com/Dr-Payne25/GVisit/actions/workflows/ci.yml/badge.svg)](https://github.com/Dr-Payne25/GVisit/actions/workflows/ci.yml)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Flask](https://img.shields.io/badge/Flask-2.3.3-green.svg)](https://flask.palletsprojects.com/)
+[![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](https://www.docker.com/)
+[![AWS](https://img.shields.io/badge/AWS-ready-orange.svg)](https://aws.amazon.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A production-ready Flask application featuring a Baronfig-inspired digital journal, secure presentation hosting, and enterprise-grade infrastructure integration with AWS services.
+A modern web application featuring secure password-protected presentations and a personal digital journal with user authentication.
+
+## 🚀 Features
+
+### 📔 Digital Journal
+- **Secure User Authentication**: Individual accounts with password hashing
+- **Case-Insensitive Usernames**: Better user experience
+- **Private Entries**: Each user has their own journal space
+- **Structured Journaling**: Multiple focus types (Daily Reflection, Weekly Goals, etc.)
+- **Mood & Energy Tracking**: Track your emotional and physical state
+- **Gratitude Lists**: Record what you're thankful for
+- **Action Items**: Set goals for tomorrow
+- **Collapsible Entry View**: Clean interface showing titles by default
+
+### 🎯 Presentation Platform
 
 ## 🌟 Features
 
@@ -171,6 +188,62 @@ Run the application and test:
 3. Verify S3 backups if configured
 4. Check health endpoint: `curl http://localhost:5002/health`
 
+Run unit tests:
+```bash
+pytest tests/ -v --cov=.
+```
+
+## 🔄 CI/CD Pipeline
+
+The project includes a comprehensive GitHub Actions CI/CD pipeline that runs on every push to main/develop branches:
+
+### Pipeline Stages
+
+1. **Code Quality**
+   - Black formatter check
+   - isort import sorting
+   - Flake8 linting
+   - Bandit security analysis
+
+2. **Testing**
+   - Multi-version Python testing (3.8, 3.9, 3.10)
+   - Unit tests with pytest
+   - Code coverage reporting with Codecov
+
+3. **Security Scanning**
+   - Trivy vulnerability scanning
+   - Safety dependency checking
+   - SARIF report generation
+
+4. **Docker Build**
+   - Container build and caching
+   - Container health checks
+
+5. **Infrastructure Validation**
+   - Terraform format checking
+   - Terraform validation
+
+6. **Deployment** (main branch only)
+   - Automated staging deployment
+   - Manual approval for production
+   - Release creation with changelog
+
+### Running CI/CD Locally
+
+```bash
+# Install CI tools
+pip install black flake8 isort bandit safety pytest pytest-cov
+
+# Run code quality checks
+make lint
+
+# Run tests
+make test
+
+# Build Docker image
+make docker-build
+```
+
 ## 📚 Tech Stack
 
 - **Backend**: Python 3.9, Flask 2.3.3
@@ -194,13 +267,16 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 🎯 Future Enhancements
 
-- [ ] User authentication system
 - [ ] Export journal entries to PDF
 - [ ] Analytics dashboard for mood/energy trends
 - [ ] Mobile app with offline sync
-- [ ] Kubernetes deployment manifests
-- [ ] CI/CD pipeline with GitHub Actions
+- [ ] Email notifications for journal reminders
+- [ ] Journal entry templates
+- [ ] Multi-language support
 - [ ] Vault integration for secret management
+- [ ] API endpoints for external integrations
+- [ ] Webhook support for automation
+- [ ] Advanced search and filtering
 
 ## 👨‍💻 About This Project
 

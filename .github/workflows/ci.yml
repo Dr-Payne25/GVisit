@@ -5,14 +5,16 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 env:
   PYTHON_VERSION: '3.9'
   NODE_VERSION: '16'
 
 jobs:
-  lint:
-    name: Code Quality Checks
+  # Code Quality Checks
+  lint-and-format:
+    name: Code Quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -26,42 +28,41 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
       
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 black isort bandit safety
+          pip install black flake8 isort mypy bandit safety
+          pip install -r requirements.txt
       
-      - name: Run Black formatter check
-        run: black --check --diff .
+      - name: Run Black formatter
+        run: black . --check --diff
         continue-on-error: true
       
-      - name: Run isort import checker
-        run: isort --check-only --diff .
+      - name: Run isort
+        run: isort . --check-only --diff
         continue-on-error: true
       
-      - name: Run Flake8 linter
-        run: |
-          # Stop build on Python syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # Exit-zero treats all errors as warnings
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      - name: Run Flake8
+        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
       
       - name: Run Bandit security linter
-        run: bandit -r app.py aws_integration.py -f json -o bandit-report.json
-        continue-on-error: true
+        run: bandit -r . -f json -o bandit-report.json || true
       
-      - name: Check dependencies for known vulnerabilities
-        run: safety check --json --file=requirements.txt
-        continue-on-error: true
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: bandit-security-report
+          path: bandit-report.json
 
+  # Unit Tests
   test:
-    name: Run Tests
+    name: Test Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    needs: lint
     strategy:
       matrix:
         python-version: ['3.8', '3.9', '3.10']
@@ -78,21 +79,17 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
       
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
           pip install pytest pytest-cov pytest-flask
+          pip install -r requirements.txt
       
-      - name: Run unit tests
+      - name: Run tests with coverage
         run: |
-          pytest tests/ -v --cov=. --cov-report=xml --cov-report=html
-        env:
-          FLASK_ENV: testing
+          pytest --cov=. --cov-report=xml --cov-report=html --cov-report=term
       
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
@@ -100,119 +97,138 @@ jobs:
           file: ./coverage.xml
           flags: unittests
           name: codecov-umbrella
-          fail_ci_if_error: false
+      
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report-${{ matrix.python-version }}
+          path: htmlcov/
 
-  build-docker:
-    name: Build Docker Image
+  # Security Scanning
+  security-scan:
+    name: Security Scanning
     runs-on: ubuntu-latest
-    needs: test
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Check for security vulnerabilities in dependencies
+        run: |
+          pip install safety
+          pip install -r requirements.txt
+          safety check --json --output safety-report.json || true
+      
+      - name: Upload Safety report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: safety-security-report
+          path: safety-report.json
+
+  # Docker Build and Test
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, test]
     steps:
       - uses: actions/checkout@v3
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       
-      - name: Cache Docker layers
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-      
       - name: Build Docker image
         uses: docker/build-push-action@v4
         with:
           context: .
           push: false
-          tags: gvisit:test
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
-          outputs: type=docker,dest=/tmp/gvisit-image.tar
+          tags: gvisit:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       
-      - name: Move cache
+      - name: Run Docker container tests
         run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-      
-      - name: Upload Docker image
-        uses: actions/upload-artifact@v3
-        with:
-          name: docker-image
-          path: /tmp/gvisit-image.tar
-          retention-days: 1
+          docker run -d -p 5002:5002 --name gvisit-test gvisit:latest
+          sleep 5
+          curl -f http://localhost:5002/health || exit 1
+          docker logs gvisit-test
+          docker stop gvisit-test
 
-  security-scan:
-    name: Security Scanning
-    runs-on: ubuntu-latest
-    needs: build-docker
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Download Docker image
-        uses: actions/download-artifact@v3
-        with:
-          name: docker-image
-          path: /tmp
-      
-      - name: Load Docker image
-        run: docker load --input /tmp/gvisit-image.tar
-      
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'gvisit:test'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-      
-      - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: 'trivy-results.sarif'
-
-  terraform-check:
+  # Terraform Validation (if using infrastructure as code)
+  terraform:
     name: Terraform Validation
     runs-on: ubuntu-latest
+    if: ${{ hashFiles('terraform/') != '' }}
     steps:
       - uses: actions/checkout@v3
       
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.5.0
+          terraform_version: latest
       
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
+        working-directory: ./terraform
         continue-on-error: true
       
       - name: Terraform Init
         run: terraform init -backend=false
+        working-directory: ./terraform
       
       - name: Terraform Validate
         run: terraform validate
+        working-directory: ./terraform
 
+  # Deploy to Staging (only on main branch)
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [test, build-docker, security-scan]
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    needs: [docker, security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: staging
       url: https://staging.gvisit.example.com
     steps:
       - uses: actions/checkout@v3
       
-      - name: Deploy to Staging
+      - name: Deploy to staging
         run: |
           echo "Deploying to staging environment..."
-          # Add your staging deployment commands here
-          # Example: Deploy to Heroku staging, AWS ECS staging, etc.
+          # Add your deployment commands here
+          # Examples:
+          # - Deploy to AWS ECS/EKS
+          # - Deploy to Heroku
+          # - Deploy to Azure
+          # - Deploy to GCP
+      
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests on staging..."
+          # Add smoke test commands
 
+  # Deploy to Production (manual approval required)
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [test, build-docker, security-scan]
+    needs: [deploy-staging]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: production
@@ -220,18 +236,43 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: Create Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ github.run_number }}
-          release_name: Release v${{ github.run_number }}
-          draft: false
-          prerelease: false
-      
-      - name: Deploy to Production
+      - name: Deploy to production
         run: |
           echo "Deploying to production environment..."
           # Add your production deployment commands here
-          # Example: Deploy to AWS ECS, Kubernetes, etc. 
+      
+      - name: Run health checks
+        run: |
+          echo "Running production health checks..."
+          # Add health check commands
+
+  # Generate release notes and create GitHub release
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Generate changelog
+        id: changelog
+        uses: TriPSs/conventional-changelog-action@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          skip-version-file: true
+          output-file: false
+      
+      - name: Create Release
+        uses: actions/create-release@v1
+        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.changelog.outputs.tag }}
+          release_name: ${{ steps.changelog.outputs.tag }}
+          body: ${{ steps.changelog.outputs.clean_changelog }}
+          draft: false
+          prerelease: false 

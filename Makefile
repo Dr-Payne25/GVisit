@@ -1,61 +1,103 @@
-.PHONY: help install test test-coverage lint format run docker-build docker-run clean
+.PHONY: help install test lint format security docker-build docker-run docker-stop clean setup-ci run dev
 
-help: ## Show this help message
-	@echo 'Usage: make [target]'
-	@echo ''
-	@echo 'Targets:'
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+# Default target
+help:
+	@echo "Available commands:"
+	@echo "  make install      - Install dependencies"
+	@echo "  make test        - Run tests with coverage"
+	@echo "  make lint        - Run code quality checks"
+	@echo "  make format      - Format code with black and isort"
+	@echo "  make security    - Run security scans"
+	@echo "  make docker-build - Build Docker image"
+	@echo "  make docker-run  - Run Docker container"
+	@echo "  make docker-stop - Stop Docker container"
+	@echo "  make clean       - Clean up temporary files"
+	@echo "  make setup-ci    - Install all CI/CD tools"
+	@echo "  make run         - Run the application locally"
+	@echo "  make dev         - Run in development mode"
 
-install: ## Install dependencies
+# Install dependencies
+install:
 	pip install -r requirements.txt
-	pip install pytest pytest-cov pytest-flask flake8 black isort
 
-test: ## Run tests
-	pytest tests/ -v
+# Install CI/CD tools
+setup-ci:
+	pip install black flake8 isort mypy bandit safety pytest pytest-cov pytest-flask
 
-test-coverage: ## Run tests with coverage report
-	pytest tests/ -v --cov=. --cov-report=html --cov-report=term
+# Run tests
+test:
+	pytest tests/ -v --cov=. --cov-report=xml --cov-report=html --cov-report=term
 
-lint: ## Run linters
-	flake8 app.py aws_integration.py tests/
-	black --check .
-	isort --check-only .
+# Run specific test file
+test-file:
+	pytest $(FILE) -v
 
-format: ## Format code
+# Run linting
+lint:
+	@echo "Running Black formatter check..."
+	black . --check --diff
+	@echo "\nRunning isort import checker..."
+	isort . --check-only --diff
+	@echo "\nRunning Flake8 linter..."
+	flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+	@echo "\nRunning Bandit security linter..."
+	bandit -r . -f json -o bandit-report.json || true
+
+# Format code
+format:
+	@echo "Formatting code with Black..."
 	black .
+	@echo "\nSorting imports with isort..."
 	isort .
 
-run: ## Run the Flask application
-	python3 app.py
+# Run security scans
+security:
+	@echo "Running Bandit security scan..."
+	bandit -r . -ll
+	@echo "\nChecking dependencies with Safety..."
+	safety check --json --output safety-report.json || true
 
-docker-build: ## Build Docker image
+# Docker commands
+docker-build:
 	docker build -t gvisit:latest .
 
-docker-run: ## Run Docker container
-	docker-compose up
+docker-run:
+	docker-compose up -d
 
-docker-test: ## Run tests in Docker
-	docker-compose run --rm web pytest tests/ -v
+docker-stop:
+	docker-compose down
 
-clean: ## Clean up cache and temporary files
-	find . -type d -name "__pycache__" -exec rm -rf {} +
+docker-logs:
+	docker-compose logs -f
+
+# Clean up
+clean:
 	find . -type f -name "*.pyc" -delete
-	rm -rf .coverage htmlcov .pytest_cache
-	rm -rf journal_entries.json
+	find . -type d -name "__pycache__" -delete
+	find . -type d -name ".pytest_cache" -delete
+	find . -type d -name ".coverage" -delete
+	find . -type d -name "htmlcov" -delete
+	rm -f .coverage coverage.xml
+	rm -f bandit-report.json safety-report.json
 
-security-check: ## Run security checks
-	bandit -r app.py aws_integration.py
-	safety check
+# Run the application
+run:
+	python3 app.py
 
-terraform-plan: ## Run terraform plan
-	terraform init
-	terraform plan
+# Run in development mode
+dev:
+	FLASK_ENV=development python3 app.py
 
-terraform-apply: ## Apply terraform changes
-	terraform init
-	terraform apply
+# Database management
+backup-journal:
+	cp journal_entries.json journal_entries_backup_$(shell date +%Y%m%d_%H%M%S).json
+	@echo "Journal backed up successfully"
 
-git-push: ## Commit and push changes
-	git add .
-	git commit -m "Update: $(shell date +%Y-%m-%d)"
-	git push origin main 
+# Git shortcuts
+push:
+	git add -A && git commit -m "$(MSG)" && git push origin main
+
+# AWS deployment (requires AWS CLI configured)
+deploy-aws:
+	@echo "Deploying to AWS..."
+	cd terraform && terraform apply -auto-approve 
