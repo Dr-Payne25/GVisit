@@ -1,10 +1,12 @@
 import json
 import os
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, make_response
 from dotenv import load_dotenv
 import logging
 from werkzeug.security import generate_password_hash, check_password_hash
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+import secrets
 
 # Load environment variables
 load_dotenv()
@@ -236,6 +238,43 @@ def add_journal_entry(entry_data):
         entries.append(entry)
         save_journal_entries(entries)
 
+# Remember me token functions
+def generate_remember_token(username):
+    """Generate a secure remember me token for a user"""
+    serializer = URLSafeTimedSerializer(app.secret_key)
+    return serializer.dumps(username, salt='remember-me-salt')
+
+def verify_remember_token(token, max_age_seconds=2592000):  # 30 days
+    """Verify a remember me token and return the username if valid"""
+    serializer = URLSafeTimedSerializer(app.secret_key)
+    try:
+        username = serializer.loads(token, salt='remember-me-salt', max_age=max_age_seconds)
+        return username
+    except (BadSignature, SignatureExpired):
+        return None
+
+@app.before_request
+def check_remember_token():
+    """Check for remember me token before each request"""
+    # Only check on journal routes
+    if request.endpoint and request.endpoint.startswith('journal'):
+        # Skip if already logged in
+        if 'journal_username' in session:
+            return
+        
+        # Check for remember token in cookies
+        remember_token = request.cookies.get('remember_token')
+        if remember_token:
+            username = verify_remember_token(remember_token)
+            if username:
+                # Auto-login the user
+                session['journal_username'] = username
+                # Refresh the token
+                response = make_response()
+                new_token = generate_remember_token(username)
+                response.set_cookie('remember_token', new_token, max_age=2592000, httponly=True, secure=True, samesite='Lax')
+                return response
+
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -302,7 +341,17 @@ def journal_login():
                 display_name = display_name.capitalize() if display_name else username.capitalize()
                 
                 flash(f"Welcome back, {display_name}!", "success")
-                return redirect(url_for('journal'))
+                
+                # Handle remember me
+                response = make_response(redirect(url_for('journal')))
+                remember_me = request.form.get('remember_me')
+                
+                if remember_me:
+                    # Generate and set remember token
+                    token = generate_remember_token(username_lower)
+                    response.set_cookie('remember_token', token, max_age=2592000, httponly=True, secure=True, samesite='Lax')
+                
+                return response
             else:
                 flash("Invalid username or password", "error")
         else:
@@ -523,8 +572,13 @@ def delete_journal_entry(entry_id):
 def logout_journal():
     """Log out from journal"""
     session.pop('journal_username', None)
+    
+    # Clear remember me token
+    response = make_response(redirect(url_for('journal_login')))
+    response.set_cookie('remember_token', '', expires=0)
+    
     flash("You have been logged out successfully.", "info")
-    return redirect(url_for('journal_login'))
+    return response
 
 @app.route('/health')
 def health():
