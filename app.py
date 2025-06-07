@@ -409,6 +409,82 @@ def journal():
                          display_name=display_name,
                          get_tag_color=get_tag_color)
 
+@app.route('/journal/edit/<int:entry_id>', methods=['GET', 'POST'])
+def edit_journal_entry(entry_id):
+    """Edit an existing journal entry"""
+    # Check if user is authenticated
+    username = session.get('journal_username')
+    
+    if not username:
+        flash("Please log in to edit entries", "info")
+        return redirect(url_for('journal_login'))
+    
+    # Get all entries and find the specific one
+    entries = get_journal_entries()
+    entry = None
+    entry_index = None
+    
+    for idx, e in enumerate(entries):
+        if e.get('id') == entry_id and e.get('username') == username:
+            entry = e
+            entry_index = idx
+            break
+    
+    if not entry:
+        flash("Entry not found or you don't have permission to edit it", "error")
+        return redirect(url_for('journal'))
+    
+    if request.method == 'POST':
+        # Update the entry with new data
+        entry['focus'] = request.form.get('focus')
+        entry['content'] = request.form.get('content')
+        entry['mood'] = request.form.get('mood')
+        entry['energy'] = request.form.get('energy')
+        entry['action_item'] = request.form.get('action_item')
+        
+        # Handle gratitude items
+        gratitude = []
+        for i in range(1, 4):
+            item = request.form.get(f'gratitude_{i}')
+            if item and item.strip():
+                gratitude.append(item.strip())
+        entry['gratitude'] = gratitude
+        
+        # Handle tags
+        tags_input = request.form.get('tags', '')
+        tags = []
+        if tags_input:
+            tags = [tag.strip() for tag in tags_input.split(',') if tag.strip()]
+            tags = list(dict.fromkeys(tags))
+        entry['tags'] = tags
+        
+        # Add edit timestamp
+        entry['last_edited'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Save the updated entries
+        entries[entry_index] = entry
+        save_journal_entries(entries)
+        
+        flash("Entry updated successfully!", "success")
+        return redirect(url_for('journal'))
+    
+    # Get display name
+    users = get_users()
+    display_name = users[username].get('display_name', username)
+    display_name = display_name.capitalize() if display_name else username.capitalize()
+    
+    # Convert tags list to comma-separated string for the form
+    tags_string = ', '.join(entry.get('tags', []))
+    
+    return render_template('edit_journal.html',
+                         entry=entry,
+                         tags_string=tags_string,
+                         focuses=JOURNAL_FOCUSES,
+                         mood_options=MOOD_OPTIONS,
+                         energy_levels=ENERGY_LEVELS,
+                         focus_prompts=FOCUS_PROMPTS,
+                         display_name=display_name)
+
 @app.route('/logout_journal', methods=['POST'])
 def logout_journal():
     """Log out from journal"""
