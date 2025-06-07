@@ -1,0 +1,29 @@
+# CODEOWNERS file for automatic review assignment
+# Each line is a file pattern followed by one or more owners.
+
+# Global owners for all files
+* @Dr-Payne25
+
+# Python application files
+*.py @Dr-Payne25
+/app.py @Dr-Payne25
+/aws_integration.py @Dr-Payne25
+
+# Tests
+/tests/ @Dr-Payne25
+
+# Infrastructure and DevOps
+/terraform/ @Dr-Payne25
+/docker/ @Dr-Payne25
+Dockerfile @Dr-Payne25
+docker-compose.yml @Dr-Payne25
+.github/workflows/ @Dr-Payne25
+
+# Documentation
+*.md @Dr-Payne25
+/docs/ @Dr-Payne25
+
+# Configuration files
+requirements.txt @Dr-Payne25
+.env.example @Dr-Payne25
+Makefile @Dr-Payne25 
