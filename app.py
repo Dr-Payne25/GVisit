@@ -4,6 +4,7 @@ from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory
 from dotenv import load_dotenv
 import logging
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Load environment variables
 load_dotenv()
@@ -26,6 +27,7 @@ PASSWORD = os.environ.get('PASSWORD', 'GVISIT')
 JOURNAL_FILE = "journal_entries.json"
 PPTX_FOLDER = 'secure_powerpoints'
 PPTX_FILES = {'ppt1': 'presentation1.pptx', 'ppt2': 'presentation2.pptx'}
+USERS_FILE = "users.json"
 
 # Initialize AWS services if available
 aws_backup = None
@@ -106,6 +108,16 @@ def get_journal_entries():
     except json.JSONDecodeError:
         return []
 
+def get_user_journal_entries(username):
+    """Get journal entries for a specific user"""
+    if not username:
+        return []
+    
+    all_entries = get_journal_entries()
+    # Filter entries by username
+    user_entries = [entry for entry in all_entries if entry.get('username') == username]
+    return user_entries
+
 def save_journal_entries(entries):
     """Save journal entries to local file and backup to S3"""
     # Save to local file
@@ -116,10 +128,60 @@ def save_journal_entries(entries):
     if aws_backup:
         aws_backup.backup_entries(entries)
 
+def get_users():
+    """Get all registered users"""
+    if not os.path.exists(USERS_FILE):
+        return {}
+    
+    try:
+        with open(USERS_FILE, 'r') as f:
+            users = json.load(f)
+        return users
+    except json.JSONDecodeError:
+        return {}
+
+def save_users(users):
+    """Save users to file"""
+    with open(USERS_FILE, 'w') as f:
+        json.dump(users, f, indent=4)
+
+def register_user(username, password):
+    """Register a new user"""
+    users = get_users()
+    
+    # Convert username to lowercase for storage
+    username_lower = username.lower()
+    
+    if username_lower in users:
+        return False, "Username already exists"
+    
+    # Store username in lowercase with display name
+    users[username_lower] = {
+        "password_hash": generate_password_hash(password),
+        "display_name": username,  # Preserve original capitalization
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    
+    save_users(users)
+    return True, "User registered successfully"
+
+def verify_user(username, password):
+    """Verify user credentials"""
+    users = get_users()
+    
+    # Convert username to lowercase for lookup
+    username_lower = username.lower()
+    
+    if username_lower not in users:
+        return False
+    
+    return check_password_hash(users[username_lower]["password_hash"], password)
+
 def add_journal_entry(entry_data):
     entries = get_journal_entries()
     entry = {
         "id": len(entries) + 1,
+        "username": entry_data.get("username"),  # Add username field
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "date": datetime.now().strftime("%B %d, %Y"),
         "time": datetime.now().strftime("%I:%M %p"),
@@ -152,10 +214,13 @@ def login(ppt_id):
 
     if request.method == 'POST':
         password = request.form.get('password')
+        logger.info(f"Login attempt for {ppt_id} - Entered: '{password}', Expected: '{PASSWORD}'")
         if password == PASSWORD:
             session[f'authenticated_{ppt_id}'] = True
+            logger.info(f"Login successful for {ppt_id}")
             return redirect(url_for('powerpoint_page', ppt_id=ppt_id))
         else:
+            logger.warning(f"Login failed for {ppt_id} - Password mismatch")
             flash("Incorrect password. Please try again.", "error")
     return render_template('login.html', ppt_id=ppt_id)
 
@@ -183,10 +248,71 @@ def powerpoint_page(ppt_id):
     
     return render_template(f'{ppt_id}.html', ppt_id=ppt_id, ppt_file_name=PPTX_FILES.get(ppt_id))
 
+@app.route('/journal_login', methods=['GET', 'POST'])
+def journal_login():
+    """Login page for journal access"""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        
+        if username and password:
+            if verify_user(username, password):
+                # Store lowercase username in session
+                username_lower = username.lower()
+                session['journal_username'] = username_lower
+                
+                # Get display name or use the entered username
+                users = get_users()
+                display_name = users[username_lower].get('display_name', username)
+                
+                flash(f"Welcome back, {display_name}!", "success")
+                return redirect(url_for('journal'))
+            else:
+                flash("Invalid username or password", "error")
+        else:
+            flash("Please provide both username and password", "error")
+    
+    return render_template('journal_login.html')
+
+@app.route('/journal_register', methods=['GET', 'POST'])
+def journal_register():
+    """Register page for new journal users"""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        if not username or not password:
+            flash("Please provide both username and password", "error")
+        elif len(username) < 3:
+            flash("Username must be at least 3 characters long", "error")
+        elif len(password) < 6:
+            flash("Password must be at least 6 characters long", "error")
+        elif password != confirm_password:
+            flash("Passwords do not match", "error")
+        else:
+            success, message = register_user(username, password)
+            if success:
+                # Store lowercase username in session
+                session['journal_username'] = username.lower()
+                flash(message, "success")
+                return redirect(url_for('journal'))
+            else:
+                flash(message, "error")
+    
+    return render_template('journal_register.html')
+
 @app.route('/journal', methods=['GET', 'POST'])
 def journal():
+    # Check if user is authenticated
+    username = session.get('journal_username')
+    
+    if not username:
+        flash("Please log in to access your journal", "info")
+        return redirect(url_for('journal_login'))
+    
     if request.method == 'POST':
-        # Collect all the form data
+        # Handle journal entry submission
         focus = request.form.get('focus')
         content = request.form.get('content')
         mood = request.form.get('mood')
@@ -203,6 +329,7 @@ def journal():
         # Validate required fields
         if focus and content and mood and energy:
             entry_data = {
+                "username": username,  # Add username to entry
                 "focus": focus,
                 "content": content,
                 "mood": mood,
@@ -216,14 +343,29 @@ def journal():
             flash("Please fill in all required fields.", "error")
         return redirect(url_for('journal'))
     
-    entries = get_journal_entries()
+    # Get entries for current user only
+    entries = get_user_journal_entries(username)
+    
+    # Get display name
+    users = get_users()
+    display_name = users[username].get('display_name', username)
+    
     return render_template('journal.html', 
                          entries=entries, 
                          focuses=JOURNAL_FOCUSES,
                          mood_options=MOOD_OPTIONS,
                          energy_levels=ENERGY_LEVELS,
                          focus_prompts=FOCUS_PROMPTS,
-                         aws_enabled=bool(aws_backup or dynamodb_store))
+                         aws_enabled=bool(aws_backup or dynamodb_store),
+                         username=username,
+                         display_name=display_name)
+
+@app.route('/logout_journal', methods=['POST'])
+def logout_journal():
+    """Log out from journal"""
+    session.pop('journal_username', None)
+    flash("You have been logged out successfully.", "info")
+    return redirect(url_for('journal_login'))
 
 @app.route('/health')
 def health():

@@ -4,7 +4,9 @@
 
 {% block content %}
 <div class="container-fluid">
-    <h2 class="mb-4">Digital Journal</h2>
+    <h2 class="mb-4">Digital Journal
+        <span class="badge bg-secondary">{{ display_name }}'s Journal</span>
+    </h2>
 
     <div class="row g-5">
         <!-- New Entry Form - Left Side -->
@@ -89,45 +91,52 @@
 
         <!-- Past Entries - Right Side -->
         <div class="col-lg-7">
-            <h4 class="mb-3">Previous Entries</h4>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">Your Entries</h4>
+                <button class="btn btn-sm btn-outline-secondary" onclick="logoutJournal()">Logout</button>
+            </div>
             <div class="entries-container" style="max-height: 80vh; overflow-y: auto;">
                 {% if entries %}
                     {% for entry in entries|reverse %}
-                    <div class="card mb-3 journal-entry-card shadow-sm">
-                        <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="card mb-2 journal-entry-card shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center py-2" 
+                             style="cursor: pointer;" data-bs-toggle="collapse" 
+                             data-bs-target="#entry-{{ loop.index }}" aria-expanded="false">
                             <div>
-                                <h5 class="mb-0">{{ entry.focus }}</h5>
+                                <h6 class="mb-0">{{ entry.focus }}</h6>
                                 <small class="text-muted">{{ entry.date }} at {{ entry.time }}</small>
                             </div>
-                            <div class="d-flex gap-3">
+                            <div class="d-flex gap-2 align-items-center">
                                 <span class="badge bg-info">
                                     {% if entry.mood == 'excellent' %}😀{% elif entry.mood == 'good' %}🙂{% elif entry.mood == 'okay' %}😐{% elif entry.mood == 'bad' %}🙁{% else %}😩{% endif %}
-                                    {{ entry.mood|title }}
                                 </span>
                                 <span class="badge bg-warning text-dark">⚡ {{ entry.energy }}</span>
+                                <i class="bi bi-chevron-down"></i>
                             </div>
                         </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <p class="card-text">{{ entry.content.replace('\n', '<br>') | safe }}</p>
+                        <div id="entry-{{ loop.index }}" class="collapse">
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <p class="card-text">{{ entry.content.replace('\n', '<br>') | safe }}</p>
+                                </div>
+                                
+                                {% if entry.gratitude %}
+                                <div class="mb-3">
+                                    <h6 class="text-muted">Grateful for:</h6>
+                                    <ul class="list-unstyled ms-3">
+                                        {% for item in entry.gratitude %}
+                                        <li><small>✨ {{ item }}</small></li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endif %}
+                                
+                                {% if entry.action_item %}
+                                <div class="alert alert-light mb-0" role="alert">
+                                    <strong>Next Step:</strong> {{ entry.action_item }}
+                                </div>
+                                {% endif %}
                             </div>
-                            
-                            {% if entry.gratitude %}
-                            <div class="mb-3">
-                                <h6 class="text-muted">Grateful for:</h6>
-                                <ul class="list-unstyled ms-3">
-                                    {% for item in entry.gratitude %}
-                                    <li><small>✨ {{ item }}</small></li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                            {% endif %}
-                            
-                            {% if entry.action_item %}
-                            <div class="alert alert-light mb-0" role="alert">
-                                <strong>Next Step:</strong> {{ entry.action_item }}
-                            </div>
-                            {% endif %}
                         </div>
                     </div>
                     {% endfor %}
@@ -175,6 +184,18 @@ function updateDateTime() {
         hour12: true 
     };
     document.getElementById('current-datetime').textContent = now.toLocaleString('en-US', options);
+}
+
+// Logout function
+function logoutJournal() {
+    if (confirm('Are you sure you want to logout?')) {
+        // Create a form to submit the logout
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/logout_journal';
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 
 // Update on page load

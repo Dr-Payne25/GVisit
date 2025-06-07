@@ -116,4 +116,45 @@ input[name^="gratitude_"]:focus {
     .entries-container {
         max-height: none !important;
     }
+}
+
+/* Collapsible Journal Entry Styles */
+.journal-entry-card .card-header {
+    transition: background-color 0.2s ease;
+}
+
+.journal-entry-card .card-header:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.journal-entry-card .bi-chevron-down {
+    transition: transform 0.3s ease;
+}
+
+.journal-entry-card .card-header[aria-expanded="true"] .bi-chevron-down {
+    transform: rotate(180deg);
+}
+
+/* Login and Register Form Styles */
+.card {
+    border-radius: 0.5rem;
+}
+
+.card-body p-4 {
+    padding: 2rem;
+}
+
+input.form-control:focus {
+    border-color: #4CAF50;
+    box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.25);
+}
+
+.btn-primary {
+    background-color: #4CAF50;
+    border-color: #4CAF50;
+}
+
+.btn-primary:hover {
+    background-color: #45a049;
+    border-color: #45a049;
 } 

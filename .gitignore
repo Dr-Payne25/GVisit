@@ -80,6 +80,13 @@ Thumbs.db
 
 # Project specific
 journal_entries.json
+journal_entries.json.backup
+
+# User credentials
+users.json
+users.json.backup
+
+# Secure PowerPoint files
 secure_powerpoints/*.pptx
 *.log
 
