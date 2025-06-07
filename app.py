@@ -485,6 +485,40 @@ def edit_journal_entry(entry_id):
                          focus_prompts=FOCUS_PROMPTS,
                          display_name=display_name)
 
+@app.route('/journal/delete/<int:entry_id>', methods=['POST'])
+def delete_journal_entry(entry_id):
+    """Delete a journal entry"""
+    # Check if user is authenticated
+    username = session.get('journal_username')
+    
+    if not username:
+        flash("Please log in to delete entries", "info")
+        return redirect(url_for('journal_login'))
+    
+    # Get all entries and find the specific one
+    entries = get_journal_entries()
+    entry_to_delete = None
+    entry_index = None
+    
+    for idx, e in enumerate(entries):
+        if e.get('id') == entry_id and e.get('username') == username:
+            entry_to_delete = e
+            entry_index = idx
+            break
+    
+    if not entry_to_delete:
+        flash("Entry not found or you don't have permission to delete it", "error")
+        return redirect(url_for('journal'))
+    
+    # Remove the entry
+    entries.pop(entry_index)
+    
+    # Save the updated entries
+    save_journal_entries(entries)
+    
+    flash("Entry deleted successfully!", "success")
+    return redirect(url_for('journal'))
+
 @app.route('/logout_journal', methods=['POST'])
 def logout_journal():
     """Log out from journal"""
