@@ -81,6 +81,7 @@ Thumbs.db
 # Project specific
 journal_entries.json
 journal_entries.json.backup
+journal_entries.json.tags_backup
 
 # User credentials
 users.json

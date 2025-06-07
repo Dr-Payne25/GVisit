@@ -74,8 +74,8 @@ input[name^="gratitude_"]:focus {
 
 /* Badge styling enhancements */
 .badge {
-    font-weight: 500;
-    padding: 0.5em 0.75em;
+    font-weight: normal;
+    padding: 0.35em 0.65em;
 }
 
 /* Action item alert */
@@ -107,8 +107,8 @@ input[name^="gratitude_"]:focus {
 }
 
 .btn-primary:hover {
-    background-color: #0b5ed7;
-    border-color: #0a58ca;
+    background-color: #45a049;
+    border-color: #45a049;
 }
 
 /* Responsive adjustments */
@@ -157,4 +157,31 @@ input.form-control:focus {
 .btn-primary:hover {
     background-color: #45a049;
     border-color: #45a049;
+}
+
+/* Custom Badge Colors for Tags */
+.bg-purple {
+    background-color: #6f42c1 !important;
+}
+
+.bg-teal {
+    background-color: #20c997 !important;
+}
+
+.bg-orange {
+    background-color: #fd7e14 !important;
+}
+
+/* Tag Badges */
+.badge {
+    font-weight: normal;
+    padding: 0.35em 0.65em;
+}
+
+/* Tag hover effect */
+.badge:hover {
+    filter: brightness(1.1);
+    cursor: pointer;
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
 } 

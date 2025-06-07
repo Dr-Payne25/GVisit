@@ -83,6 +83,16 @@
                                    placeholder="What's your key takeaway or next step?">
                         </div>
 
+                        <!-- Tags -->
+                        <div class="mb-4">
+                            <label for="tags" class="form-label fw-bold">
+                                <i class="bi bi-tags"></i> Tags
+                            </label>
+                            <input type="text" class="form-control" id="tags" name="tags" 
+                                   placeholder="Enter tags separated by commas (e.g., work, goals, personal)">
+                            <div class="form-text">Add tags to organize your entries. Separate multiple tags with commas.</div>
+                        </div>
+
                         <button type="submit" class="btn btn-primary btn-lg w-100">Save Entry</button>
                     </form>
                 </div>
@@ -105,6 +115,15 @@
                             <div>
                                 <h6 class="mb-0">{{ entry.focus }}</h6>
                                 <small class="text-muted">{{ entry.date }} at {{ entry.time }}</small>
+                                {% if entry.tags %}
+                                <div class="mt-1">
+                                    {% for tag in entry.tags %}
+                                    <span class="badge bg-{{ get_tag_color(tag) }} me-1" style="font-size: 0.75rem;">
+                                        <i class="bi bi-tag"></i> {{ tag }}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
                             </div>
                             <div class="d-flex gap-2 align-items-center">
                                 <span class="badge bg-info">

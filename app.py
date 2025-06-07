@@ -71,6 +71,39 @@ MOOD_OPTIONS = [
 
 ENERGY_LEVELS = ["High", "Medium", "Low"]
 
+# Tag system configuration
+TAG_CATEGORIES = {
+    # Work related
+    "work": {"color": "primary", "keywords": ["work", "job", "career", "meeting", "project", "deadline", "office"]},
+    "finance": {"color": "success", "keywords": ["money", "budget", "finance", "savings", "investment", "expense"]},
+    "learning": {"color": "info", "keywords": ["learning", "study", "course", "book", "skill", "education", "training"]},
+    
+    # Personal
+    "health": {"color": "danger", "keywords": ["health", "fitness", "exercise", "diet", "sleep", "medical", "wellness"]},
+    "personal": {"color": "warning", "keywords": ["personal", "self", "reflection", "growth", "mindfulness", "meditation"]},
+    "social": {"color": "secondary", "keywords": ["family", "friends", "social", "relationship", "love", "community"]},
+    
+    # Creative & Misc
+    "creative": {"color": "purple", "keywords": ["creative", "art", "writing", "music", "hobby", "craft", "design"]},
+    "travel": {"color": "teal", "keywords": ["travel", "trip", "vacation", "adventure", "explore", "destination"]},
+    "goals": {"color": "orange", "keywords": ["goal", "plan", "future", "dream", "ambition", "resolution", "target"]},
+    
+    # Default
+    "other": {"color": "dark", "keywords": []}
+}
+
+def get_tag_color(tag):
+    """Determine the color category for a tag based on keywords"""
+    tag_lower = tag.lower()
+    
+    for category, config in TAG_CATEGORIES.items():
+        if any(keyword in tag_lower for keyword in config["keywords"]):
+            return config["color"]
+    
+    # Assign color based on hash for consistency if no category matches
+    colors = ["primary", "secondary", "success", "danger", "warning", "info", "dark"]
+    return colors[hash(tag) % len(colors)]
+
 # Prompts for different focuses
 FOCUS_PROMPTS = {
     "Daily Reflection": "What was a win today? What was a challenge? What did you learn?",
@@ -155,10 +188,10 @@ def register_user(username, password):
     if username_lower in users:
         return False, "Username already exists"
     
-    # Store username in lowercase with display name
+    # Store username in lowercase with display name (capitalize first letter)
     users[username_lower] = {
         "password_hash": generate_password_hash(password),
-        "display_name": username,  # Preserve original capitalization
+        "display_name": username_lower.capitalize(),  # Always capitalize first letter
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     
@@ -191,6 +224,7 @@ def add_journal_entry(entry_data):
         "energy": entry_data.get("energy"),
         "gratitude": entry_data.get("gratitude", []),
         "action_item": entry_data.get("action_item"),
+        "tags": entry_data.get("tags", []),  # Add tags field
         "version": "2.0"
     }
     
@@ -264,6 +298,8 @@ def journal_login():
                 # Get display name or use the entered username
                 users = get_users()
                 display_name = users[username_lower].get('display_name', username)
+                # Ensure display name is capitalized
+                display_name = display_name.capitalize() if display_name else username.capitalize()
                 
                 flash(f"Welcome back, {display_name}!", "success")
                 return redirect(url_for('journal'))
@@ -326,6 +362,15 @@ def journal():
             if item and item.strip():
                 gratitude.append(item.strip())
         
+        # Handle tags
+        tags_input = request.form.get('tags', '')
+        tags = []
+        if tags_input:
+            # Split by comma and clean up each tag
+            tags = [tag.strip() for tag in tags_input.split(',') if tag.strip()]
+            # Remove duplicates while preserving order
+            tags = list(dict.fromkeys(tags))
+        
         # Validate required fields
         if focus and content and mood and energy:
             entry_data = {
@@ -335,7 +380,8 @@ def journal():
                 "mood": mood,
                 "energy": energy,
                 "gratitude": gratitude,
-                "action_item": action_item
+                "action_item": action_item,
+                "tags": tags
             }
             add_journal_entry(entry_data)
             flash("Journal entry added successfully!", "success")
@@ -349,6 +395,8 @@ def journal():
     # Get display name
     users = get_users()
     display_name = users[username].get('display_name', username)
+    # Ensure display name is capitalized
+    display_name = display_name.capitalize() if display_name else username.capitalize()
     
     return render_template('journal.html', 
                          entries=entries, 
@@ -358,7 +406,8 @@ def journal():
                          focus_prompts=FOCUS_PROMPTS,
                          aws_enabled=bool(aws_backup or dynamodb_store),
                          username=username,
-                         display_name=display_name)
+                         display_name=display_name,
+                         get_tag_color=get_tag_color)
 
 @app.route('/logout_journal', methods=['POST'])
 def logout_journal():
