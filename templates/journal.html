@@ -136,7 +136,7 @@
                         <div id="entry-{{ loop.index }}" class="collapse">
                             <div class="card-body">
                                 <div class="mb-3">
-                                    <p class="card-text">{{ entry.content.replace('\n', '<br>') | safe }}</p>
+                                    <p class="card-text" style="white-space: pre-wrap; word-wrap: break-word;">{{ entry.content }}</p>
                                 </div>
                                 
                                 {% if entry.gratitude %}

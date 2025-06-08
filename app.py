@@ -201,16 +201,29 @@ def register_user(username, password):
     return True, "User registered successfully"
 
 def verify_user(username, password):
-    """Verify user credentials"""
+    """Verify user credentials with constant-time comparison"""
     users = get_users()
     
     # Convert username to lowercase for lookup
     username_lower = username.lower()
     
-    if username_lower not in users:
-        return False
+    # Always perform the same operations regardless of username validity
+    # Use a dummy hash if user doesn't exist to ensure constant time
+    # This is a valid scrypt hash format to ensure proper timing
+    dummy_hash = generate_password_hash("dummy")
     
-    return check_password_hash(users[username_lower]["password_hash"], password)
+    if username_lower in users:
+        stored_hash = users[username_lower]["password_hash"]
+        user_exists = True
+    else:
+        stored_hash = dummy_hash
+        user_exists = False
+    
+    # Always perform the hash check (constant time operation)
+    password_valid = check_password_hash(stored_hash, password)
+    
+    # Return True only if user exists AND password is valid
+    return user_exists and password_valid
 
 def add_journal_entry(entry_data):
     entries = get_journal_entries()
