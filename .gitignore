@@ -102,4 +102,7 @@ secure_powerpoints/*.pptx
 .aws/
 
 # Docker volumes
-docker-volumes/ 
+docker-volumes/
+
+# Screenshots and temporary files
+Screenshots/ 
