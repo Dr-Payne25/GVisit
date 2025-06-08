@@ -28,7 +28,7 @@ app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
 PASSWORD = os.environ.get('PASSWORD', 'GVISIT')
 JOURNAL_FILE = "journal_entries.json"
 PPTX_FOLDER = 'secure_powerpoints'
-PPTX_FILES = {'ppt1': 'presentation1.pptx', 'ppt2': 'presentation2.pptx'}
+PPTX_FILES = {'ppt1': 'our_nigga_way.pptx', 'ppt2': 'presentation2.pptx'}
 USERS_FILE = "users.json"
 
 # Initialize AWS services if available
