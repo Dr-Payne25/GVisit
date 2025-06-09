@@ -136,7 +136,7 @@
                         <div id="entry-{{ loop.index }}" class="collapse">
                             <div class="card-body">
                                 <div class="mb-3">
-                                    <p class="card-text">{{ entry.content.replace('\n', '<br>') | safe }}</p>
+                                    <p class="card-text" style="white-space: pre-wrap; word-wrap: break-word;">{{ entry.content }}</p>
                                 </div>
                                 
                                 {% if entry.gratitude %}
@@ -151,10 +151,22 @@
                                 {% endif %}
                                 
                                 {% if entry.action_item %}
-                                <div class="alert alert-light mb-0" role="alert">
+                                <div class="alert alert-light mb-2" role="alert">
                                     <strong>Next Step:</strong> {{ entry.action_item }}
                                 </div>
                                 {% endif %}
+                                
+                                <div class="d-flex justify-content-between align-items-center mt-3">
+                                    <small class="text-muted">
+                                        {% if entry.last_edited %}
+                                            <i class="bi bi-pencil"></i> Edited {{ entry.last_edited }}
+                                        {% endif %}
+                                    </small>
+                                    <a href="{{ url_for('edit_journal_entry', entry_id=entry.id) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil-square"></i> Edit
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -9,7 +9,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from app import app, add_journal_entry, get_journal_entries
 
 class TestGVisitApp(unittest.TestCase):
-    """Test suite for GVisit Flask application"""
+    """Test suite for GVisit Flask application
+    
+    Note: Journal authentication and CRUD tests have been moved to test_journal_features.py
+    """
     
     def setUp(self):
         """Set up test client and temporary files"""
@@ -40,14 +43,14 @@ class TestGVisitApp(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Welcome to Your New Website!', response.data)
         self.assertIn(b'Presentations', response.data)
-        self.assertIn(b'Quick Journal', response.data)
+        self.assertIn(b'Personal Journal', response.data)
         
-    def test_journal_page_loads(self):
-        """Test that journal page loads successfully"""
-        response = self.client.get('/journal')
+    def test_journal_page_requires_login(self):
+        """Test that journal page requires authentication"""
+        response = self.client.get('/journal', follow_redirects=True)
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Digital Journal', response.data)
-        self.assertIn(b'New Entry', response.data)
+        self.assertIn(b'Please log in to access your journal', response.data)
+        self.assertIn(b'Journal Login', response.data)
         
     def test_login_page_ppt1(self):
         """Test that login page for presentation 1 loads"""
@@ -92,43 +95,7 @@ class TestGVisitApp(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Incorrect password', response.data)
         
-    def test_add_journal_entry(self):
-        """Test adding a journal entry"""
-        entry_data = {
-            'focus': 'Daily Reflection',
-            'content': 'Test journal entry content',
-            'mood': 'good',
-            'energy': 'Medium',
-            'gratitude_1': 'Grateful for tests',
-            'gratitude_2': 'Grateful for Flask',
-            'gratitude_3': '',
-            'action_item': 'Write more tests'
-        }
-        
-        response = self.client.post('/journal', 
-                                    data=entry_data, 
-                                    follow_redirects=True)
-        
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Journal entry added successfully!', response.data)
-        self.assertIn(b'Test journal entry content', response.data)
-        
-    def test_journal_entry_validation(self):
-        """Test journal entry validation"""
-        # Missing required fields
-        entry_data = {
-            'focus': 'Daily Reflection',
-            'content': '',  # Empty content
-            'mood': 'good',
-            'energy': 'Medium'
-        }
-        
-        response = self.client.post('/journal', 
-                                    data=entry_data, 
-                                    follow_redirects=True)
-        
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Please fill in all required fields', response.data)
+
         
     def test_health_endpoint(self):
         """Test the health check endpoint"""

@@ -1,10 +1,12 @@
 import json
 import os
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, make_response
 from dotenv import load_dotenv
 import logging
 from werkzeug.security import generate_password_hash, check_password_hash
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+import secrets
 
 # Load environment variables
 load_dotenv()
@@ -26,7 +28,7 @@ app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
 PASSWORD = os.environ.get('PASSWORD', 'GVISIT')
 JOURNAL_FILE = "journal_entries.json"
 PPTX_FOLDER = 'secure_powerpoints'
-PPTX_FILES = {'ppt1': 'presentation1.pptx', 'ppt2': 'presentation2.pptx'}
+PPTX_FILES = {'ppt1': 'our_nigga_way.pptx', 'ppt2': 'presentation2.pptx'}
 USERS_FILE = "users.json"
 
 # Initialize AWS services if available
@@ -199,16 +201,29 @@ def register_user(username, password):
     return True, "User registered successfully"
 
 def verify_user(username, password):
-    """Verify user credentials"""
+    """Verify user credentials with constant-time comparison"""
     users = get_users()
     
     # Convert username to lowercase for lookup
     username_lower = username.lower()
     
-    if username_lower not in users:
-        return False
+    # Always perform the same operations regardless of username validity
+    # Use a dummy hash if user doesn't exist to ensure constant time
+    # This is a valid scrypt hash format to ensure proper timing
+    dummy_hash = generate_password_hash("dummy")
     
-    return check_password_hash(users[username_lower]["password_hash"], password)
+    if username_lower in users:
+        stored_hash = users[username_lower]["password_hash"]
+        user_exists = True
+    else:
+        stored_hash = dummy_hash
+        user_exists = False
+    
+    # Always perform the hash check (constant time operation)
+    password_valid = check_password_hash(stored_hash, password)
+    
+    # Return True only if user exists AND password is valid
+    return user_exists and password_valid
 
 def add_journal_entry(entry_data):
     entries = get_journal_entries()
@@ -235,6 +250,43 @@ def add_journal_entry(entry_data):
         # Add to local list and save
         entries.append(entry)
         save_journal_entries(entries)
+
+# Remember me token functions
+def generate_remember_token(username):
+    """Generate a secure remember me token for a user"""
+    serializer = URLSafeTimedSerializer(app.secret_key)
+    return serializer.dumps(username, salt='remember-me-salt')
+
+def verify_remember_token(token, max_age_seconds=2592000):  # 30 days
+    """Verify a remember me token and return the username if valid"""
+    serializer = URLSafeTimedSerializer(app.secret_key)
+    try:
+        username = serializer.loads(token, salt='remember-me-salt', max_age=max_age_seconds)
+        return username
+    except (BadSignature, SignatureExpired):
+        return None
+
+@app.before_request
+def check_remember_token():
+    """Check for remember me token before each request"""
+    # Only check on journal routes
+    if request.endpoint and request.endpoint.startswith('journal'):
+        # Skip if already logged in
+        if 'journal_username' in session:
+            return
+        
+        # Check for remember token in cookies
+        remember_token = request.cookies.get('remember_token')
+        if remember_token:
+            username = verify_remember_token(remember_token)
+            if username:
+                # Auto-login the user
+                session['journal_username'] = username
+                # Refresh the token
+                response = make_response()
+                new_token = generate_remember_token(username)
+                response.set_cookie('remember_token', new_token, max_age=2592000, httponly=True, secure=True, samesite='Lax')
+                return response
 
 @app.route('/')
 def home():
@@ -302,7 +354,17 @@ def journal_login():
                 display_name = display_name.capitalize() if display_name else username.capitalize()
                 
                 flash(f"Welcome back, {display_name}!", "success")
-                return redirect(url_for('journal'))
+                
+                # Handle remember me
+                response = make_response(redirect(url_for('journal')))
+                remember_me = request.form.get('remember_me')
+                
+                if remember_me:
+                    # Generate and set remember token
+                    token = generate_remember_token(username_lower)
+                    response.set_cookie('remember_token', token, max_age=2592000, httponly=True, secure=True, samesite='Lax')
+                
+                return response
             else:
                 flash("Invalid username or password", "error")
         else:
@@ -409,12 +471,127 @@ def journal():
                          display_name=display_name,
                          get_tag_color=get_tag_color)
 
+@app.route('/journal/edit/<int:entry_id>', methods=['GET', 'POST'])
+def edit_journal_entry(entry_id):
+    """Edit an existing journal entry"""
+    # Check if user is authenticated
+    username = session.get('journal_username')
+    
+    if not username:
+        flash("Please log in to edit entries", "info")
+        return redirect(url_for('journal_login'))
+    
+    # Get all entries and find the specific one
+    entries = get_journal_entries()
+    entry = None
+    entry_index = None
+    
+    for idx, e in enumerate(entries):
+        if e.get('id') == entry_id and e.get('username') == username:
+            entry = e
+            entry_index = idx
+            break
+    
+    if not entry:
+        flash("Entry not found or you don't have permission to edit it", "error")
+        return redirect(url_for('journal'))
+    
+    if request.method == 'POST':
+        # Update the entry with new data
+        entry['focus'] = request.form.get('focus')
+        entry['content'] = request.form.get('content')
+        entry['mood'] = request.form.get('mood')
+        entry['energy'] = request.form.get('energy')
+        entry['action_item'] = request.form.get('action_item')
+        
+        # Handle gratitude items
+        gratitude = []
+        for i in range(1, 4):
+            item = request.form.get(f'gratitude_{i}')
+            if item and item.strip():
+                gratitude.append(item.strip())
+        entry['gratitude'] = gratitude
+        
+        # Handle tags
+        tags_input = request.form.get('tags', '')
+        tags = []
+        if tags_input:
+            tags = [tag.strip() for tag in tags_input.split(',') if tag.strip()]
+            tags = list(dict.fromkeys(tags))
+        entry['tags'] = tags
+        
+        # Add edit timestamp
+        entry['last_edited'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Save the updated entries
+        entries[entry_index] = entry
+        save_journal_entries(entries)
+        
+        flash("Entry updated successfully!", "success")
+        return redirect(url_for('journal'))
+    
+    # Get display name
+    users = get_users()
+    display_name = users[username].get('display_name', username)
+    display_name = display_name.capitalize() if display_name else username.capitalize()
+    
+    # Convert tags list to comma-separated string for the form
+    tags_string = ', '.join(entry.get('tags', []))
+    
+    return render_template('edit_journal.html',
+                         entry=entry,
+                         tags_string=tags_string,
+                         focuses=JOURNAL_FOCUSES,
+                         mood_options=MOOD_OPTIONS,
+                         energy_levels=ENERGY_LEVELS,
+                         focus_prompts=FOCUS_PROMPTS,
+                         display_name=display_name)
+
+@app.route('/journal/delete/<int:entry_id>', methods=['POST'])
+def delete_journal_entry(entry_id):
+    """Delete a journal entry"""
+    # Check if user is authenticated
+    username = session.get('journal_username')
+    
+    if not username:
+        flash("Please log in to delete entries", "info")
+        return redirect(url_for('journal_login'))
+    
+    # Get all entries and find the specific one
+    entries = get_journal_entries()
+    entry_to_delete = None
+    entry_index = None
+    
+    for idx, e in enumerate(entries):
+        if e.get('id') == entry_id and e.get('username') == username:
+            entry_to_delete = e
+            entry_index = idx
+            break
+    
+    if not entry_to_delete:
+        flash("Entry not found or you don't have permission to delete it", "error")
+        return redirect(url_for('journal'))
+    
+    # Remove the entry
+    entries.pop(entry_index)
+    
+    # Save the updated entries
+    save_journal_entries(entries)
+    
+    flash("Entry deleted successfully!", "success")
+    return redirect(url_for('journal'))
+
 @app.route('/logout_journal', methods=['POST'])
 def logout_journal():
     """Log out from journal"""
     session.pop('journal_username', None)
+    
+    # Clear remember me token
+    response = make_response(redirect(url_for('journal_login')))
+    response.set_cookie('remember_token', '', expires=0)
+    
     flash("You have been logged out successfully.", "info")
-    return redirect(url_for('journal_login'))
+    return response
 
 @app.route('/health')
 def health():

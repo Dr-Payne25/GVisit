@@ -102,4 +102,16 @@ secure_powerpoints/*.pptx
 .aws/
 
 # Docker volumes
-docker-volumes/ 
+docker-volumes/
+
+# Screenshots and temporary files
+Screenshots/
+
+# Security documentation (internal use only)
+DEEP_DIVE_SECURITY_VULNERABILITIES.md
+REAL_WORLD_ATTACK_SCENARIOS.md
+SECURITY_TESTING_SUMMARY.md
+SECURITY_VULNERABILITIES_EXPLAINED.md
+security_fixes.py
+SESSION_CONTEXT.md
+TESTING_SUMMARY.md 
